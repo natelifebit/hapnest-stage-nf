@@ -1,0 +1,33 @@
+name: Stage HAPNEST example dataset
+on: workflow_dispatch
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download, merge, export
+        run: |
+          set -e
+          sudo apt-get update -qq && sudo apt-get install -y -qq plink2 wget
+          B=https://ftp.ebi.ac.uk/biostudies/fire/S-BSST/936/S-BSST936/Files/example
+          mkdir -p raw out
+          for c in $(seq 1 22); do
+            for e in bed bim fam; do wget -q "$B/synthetic_small_v1_chr-$c.$e" -O raw/chr$c.$e; done
+            echo "chr$c downloaded"
+          done
+          for p in 1 2 3; do wget -q "$B/synthetic_small_v1.pheno$p" -O raw/pheno$p.txt; done
+          for c in $(seq 1 22); do echo raw/chr$c; done > merge.txt
+          plink2 --pmerge-list merge.txt bfile --make-bed --out out/hapnest600 --memory 12000
+          plink2 --bfile out/hapnest600 --export bgen-1.2 bits=8 --out out/hapnest600_assoc --memory 12000
+          cut -f1 raw/pheno1.txt > c0; cut -f5 raw/pheno1.txt > c1; cut -f5 raw/pheno2.txt > c2; cut -f5 raw/pheno3.txt > c3
+          paste c0 c0 c1 c2 c3 | tail -n +2 > body.txt
+          printf 'FID\tIID\tY1\tY2\tY3\n' > out/phenotype.txt
+          cat body.txt >> out/phenotype.txt
+          ls -la out/
+      - name: Publish as release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v1 out/* --repo "$GITHUB_REPOSITORY" --title "HAPNEST-600 staged inputs" \
+            --notes "Analysis-ready inputs derived from the public synthetic HAPNEST example dataset (EBI BioStudies S-BSST936, 600 synthetic individuals, ~6.8M variants): merged genome-wide PLINK fileset, BGEN v1.2 export, and a 3-trait phenotype table. Synthetic data - no real individuals. Source: https://www.ebi.ac.uk/biostudies/studies/S-BSST936 (INTERVENE consortium HAPNEST)."
