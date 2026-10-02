@@ -15,7 +15,7 @@ params.base   = 'https://github.com/natelifebit/hapnest-stage-nf/releases/downlo
 params.outdir = 'results'
 
 process FETCH {
-    container 'public.ecr.aws/ubuntu/ubuntu:24.04'
+    container 'quay.io/biocontainers/plink2:2.0.0a.6.9--h9948957_0'
     publishDir params.outdir, mode: 'copy'
     cpus 2
     memory '4 GB'
